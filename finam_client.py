@@ -34,32 +34,18 @@ class FinamClient:
         # Финам API требует направления сделки: Buy=1, Sell=2
         direction = 1 if action.lower() == 'buy' else 2
         
-        # Формируем тело запроса (упрощенно для рыночной заявки)
-        # В реальном API Финам структура может быть сложнее, это примерная реализация
-        # для REST API. Важно свериться с актуальной документацией.
-        # Обычно для рыночной заявки price=0 или не указывается, 
-        # но API может требовать property "price": 0.
-        
         payload = {
             "clientId": self.client_id,
             "securityBoard": board,
             "securityCode": ticker,
             "buySell": direction,
             "quantity": quantity,
-            "useCredit": True, # Использовать маржинальное кредитование если нужно
-            "property": "PutInQueue", # Пример свойства, может отличаться
-            # Для рыночной заявки цена обычно 0 или null, но зависит от реализации
-            # "price": 0, 
+            "useCredit": True, 
+            "property": "PutInQueue", 
         }
-
-        # Примечание: У Финама API может быть gRPC или требовать специфических полей.
-        # Для REST (http-gateway) примерная структура.
-        # Если используется Transaq Connector или старый API, код будет другим.
-        # Здесь мы предполагаем использование современного Trade API.
 
         try:
             logger.info(f"Отправка ордера: {action} {quantity} {ticker} на {board}")
-            # В реальном API может потребоваться подтверждение или другой endpoint
             response = requests.post(endpoint, headers=self._get_headers(), json=payload)
             response.raise_for_status()
             logger.info(f"Ордер успешно отправлен: {response.json()}")
@@ -81,6 +67,41 @@ class FinamClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"Ошибка получения портфеля: {e}")
             return None
+
+    def get_positions(self, board=BOARD):
+        """Получение текущих открытых позиций"""
+        # У Финама нет отдельного простого эндпоинта "positions", 
+        # позиции обычно приходят внутри портфеля или в stops/orders
+        # В v1/portfolio есть раздел positions
+        # ВНИМАНИЕ: Это зависит от версии API, нужно парсить ответ portfolio
+        portfolio = self.get_portfolio()
+        if not portfolio:
+            return []
+            
+        # Упрощенный парсинг. Структура может отличаться.
+        # Обычно это list внутри data['positions']
+        # Нам нужно найти позиции по нашему инструменту
+        # Предположим структуру { "positions": [ { "securityCode": "NGH6", "balance": 1, ... } ] }
+        try:
+            # В реальном ответе может быть вложенность data -> portfolio -> positions
+            # Или просто positions
+            # Проверим структуру (в реальности нужно смотреть доку)
+            if 'data' in portfolio and 'positions' in portfolio['data']:
+                return portfolio['data']['positions']
+            elif 'positions' in portfolio:
+                return portfolio['positions']
+            return []
+        except Exception as e:
+            logger.error(f"Ошибка парсинга позиций: {e}")
+            return []
+
+    def get_position_for_ticker(self, ticker: str):
+        positions = self.get_positions()
+        for pos in positions:
+            if pos.get('securityCode') == ticker:
+                # balance - это текущее кол-во лотов
+                return pos.get('balance', 0)
+        return 0
 
 # Создаем экземпляр клиента
 finam_client = FinamClient(FINAM_API_TOKEN, FINAM_CLIENT_ID, TRADING_ACCOUNT_ID)
