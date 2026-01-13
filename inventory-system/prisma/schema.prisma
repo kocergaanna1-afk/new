@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  name         String?
+  role         String     @default("OPERATOR") // ADMIN, OPERATOR
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Supplier {
+  id             String    @id @default(uuid())
+  name           String
+  contactPerson  String?
+  contractNumber String?
+  contractType   String? // COMMISSION, PURCHASE, etc.
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  documents      Document[]
+  payments       Payment[]
+}
+
+model Warehouse {
+  id                String     @id @default(uuid())
+  name              String
+  location          String?
+  responsiblePerson String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  stocks            Stock[]
+  sourceDocuments   Document[] @relation("SourceWarehouse")
+  destDocuments     Document[] @relation("DestWarehouse")
+}
+
+model Product {
+  id            String         @id @default(uuid())
+  barcode       String?        @unique
+  sku           String?        @unique
+  name          String
+  vatRate       Float          @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  stocks        Stock[]
+  documentItems DocumentItem[]
+}
+
+model Stock {
+  id          String    @id @default(uuid())
+  productId   String
+  warehouseId String
+  quantity    Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([productId, warehouseId])
+}
+
+model Document {
+  id            String         @id @default(uuid())
+  type          String // COMMISSION, PURCHASE, OPENING_BALANCE, TRANSFER, SALE
+  date          DateTime       @default(now())
+  number        String         @unique
+  status        String         @default("DRAFT") // DRAFT, APPROVED, POSTED
+  supplierId    String?
+  sourceWarehouseId String?
+  destWarehouseId   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  sourceWarehouse Warehouse?   @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  destWarehouse   Warehouse?   @relation("DestWarehouse", fields: [destWarehouseId], references: [id])
+  items         DocumentItem[]
+  payments      Payment[]
+}
+
+model DocumentItem {
+  id         String   @id @default(uuid())
+  documentId String
+  productId  String
+  quantity   Float
+  price      Float
+  sum        Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  supplierId String
+  documentId String?
+  date       DateTime @default(now())
+  amount     Float
+  type       String // PAYMENT, PREPAYMENT, COMMISSION_OFFSET
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  document   Document? @relation(fields: [documentId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  timestamp DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+}
