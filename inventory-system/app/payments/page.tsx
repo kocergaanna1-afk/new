@@ -30,8 +30,11 @@ export default function PaymentsPage() {
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
       
-      <div className="mb-4">
-          <p className="text-gray-600">Для создания платежа используйте API.</p>
+      <div className="flex justify-between items-center mb-4">
+          <p className="text-gray-600">История платежей</p>
+          <a href="/payments/new" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              + Создать платеж
+          </a>
       </div>
 
       {loading ? (

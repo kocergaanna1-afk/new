@@ -30,8 +30,11 @@ export default function DocumentsPage() {
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
       
-      <div className="mb-4">
-          <p className="text-gray-600">Для создания документа используйте API (пока что UI для создания не реализован).</p>
+      <div className="flex justify-between items-center mb-4">
+          <p className="text-gray-600">Список документов</p>
+          <a href="/documents/new" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              + Создать документ
+          </a>
       </div>
 
       {loading ? (
