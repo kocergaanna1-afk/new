@@ -33,5 +33,15 @@ class Config:
     MAX_VOICE_DURATION: int = int(os.getenv("MAX_VOICE_DURATION", "300"))
     TRANSCRIPTION_PROVIDER: str = os.getenv("TRANSCRIPTION_PROVIDER", "openai")
 
+    # faster-whisper (локальный, бесплатный)
+    # Модели: tiny, base, small, medium, large-v3
+    # Для русского рекомендуется medium или large-v3
+    LOCAL_WHISPER_MODEL: str = os.getenv("LOCAL_WHISPER_MODEL", "medium")
+    LOCAL_WHISPER_COMPUTE: str = os.getenv("LOCAL_WHISPER_COMPUTE", "int8")
+
+    # Vosk (офлайн, бесплатный, лёгкий)
+    # Скачать модель: https://alphacephei.com/vosk/models
+    VOSK_MODEL_PATH: str = os.getenv("VOSK_MODEL_PATH", "./vosk-model")
+
 
 config = Config()

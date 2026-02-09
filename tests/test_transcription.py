@@ -9,8 +9,8 @@ import pytest
 from bot.services.transcription import transcribe
 
 
-class TestTranscription:
-    """Тесты модуля транскрипции."""
+class TestTranscriptionOpenAI:
+    """Тесты транскрипции через OpenAI."""
 
     @pytest.mark.asyncio
     async def test_transcribe_openai_success(self):
@@ -76,6 +76,91 @@ class TestTranscription:
                     with pytest.raises(RuntimeError, match="Не удалось транскрибировать"):
                         await transcribe(Path("/tmp/test.wav"))
 
+
+class TestTranscriptionLocal:
+    """Тесты транскрипции через faster-whisper."""
+
+    @pytest.mark.asyncio
+    async def test_transcribe_local_missing_package(self):
+        """Тест ошибки при отсутствии faster-whisper."""
+        import bot.services.transcription as t_mod
+
+        # Сбрасываем кеш модели
+        t_mod._faster_whisper_model = None
+
+        with patch("bot.services.transcription.config") as mock_config:
+            mock_config.TRANSCRIPTION_PROVIDER = "local"
+            mock_config.WHISPER_LANGUAGE = "ru"
+            mock_config.LOCAL_WHISPER_MODEL = "tiny"
+            mock_config.LOCAL_WHISPER_COMPUTE = "int8"
+
+            with pytest.raises(RuntimeError, match="faster-whisper не установлен"):
+                await transcribe(Path("/tmp/test.wav"))
+
+    @pytest.mark.asyncio
+    async def test_transcribe_local_success(self):
+        """Тест успешной локальной транскрипции (мок)."""
+        import sys
+        import types
+
+        import bot.services.transcription as t_mod
+
+        # Создаём фейковый модуль faster_whisper
+        fake_fw = types.ModuleType("faster_whisper")
+        fake_fw.WhisperModel = MagicMock
+        sys.modules["faster_whisper"] = fake_fw
+
+        try:
+            # Мокаем модель
+            mock_info = MagicMock()
+            mock_info.language = "ru"
+            mock_info.language_probability = 0.98
+
+            mock_segment = MagicMock()
+            mock_segment.text = "Тестовая локальная транскрипция"
+
+            mock_model = MagicMock()
+            mock_model.transcribe.return_value = ([mock_segment], mock_info)
+
+            # Подставляем мок-модель в кеш
+            t_mod._faster_whisper_model = mock_model
+
+            with patch("bot.services.transcription.config") as mock_config:
+                mock_config.TRANSCRIPTION_PROVIDER = "local"
+                mock_config.WHISPER_LANGUAGE = "ru"
+                mock_config.LOCAL_WHISPER_MODEL = "tiny"
+                mock_config.LOCAL_WHISPER_COMPUTE = "int8"
+
+                result = await transcribe(Path("/tmp/test.wav"))
+
+            assert result == "Тестовая локальная транскрипция"
+        finally:
+            # Очищаем
+            t_mod._faster_whisper_model = None
+            del sys.modules["faster_whisper"]
+
+
+class TestTranscriptionVosk:
+    """Тесты транскрипции через Vosk."""
+
+    @pytest.mark.asyncio
+    async def test_transcribe_vosk_missing_package(self):
+        """Тест ошибки при отсутствии vosk."""
+        import bot.services.transcription as t_mod
+
+        t_mod._vosk_model = None
+
+        with patch("bot.services.transcription.config") as mock_config:
+            mock_config.TRANSCRIPTION_PROVIDER = "vosk"
+            mock_config.VOSK_MODEL_PATH = "./vosk-model"
+
+            with pytest.raises(RuntimeError, match="vosk не установлен"):
+                await transcribe(Path("/tmp/test.wav"))
+
+
+class TestTranscriptionGeneral:
+    """Общие тесты транскрипции."""
+
     @pytest.mark.asyncio
     async def test_transcribe_unknown_provider(self):
         """Тест с неизвестным провайдером."""
@@ -83,13 +168,4 @@ class TestTranscription:
             mock_config.TRANSCRIPTION_PROVIDER = "unknown"
 
             with pytest.raises(ValueError, match="Неизвестный провайдер"):
-                await transcribe(Path("/tmp/test.wav"))
-
-    @pytest.mark.asyncio
-    async def test_transcribe_local_not_implemented(self):
-        """Тест что локальная транскрипция ещё не реализована."""
-        with patch("bot.services.transcription.config") as mock_config:
-            mock_config.TRANSCRIPTION_PROVIDER = "local"
-
-            with pytest.raises(NotImplementedError):
                 await transcribe(Path("/tmp/test.wav"))
