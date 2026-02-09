@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Knowledge base exports
+knowledge_base/export_knowledge_base.zip
+
+# Temp audio files
+*.ogg
+*.wav
+
+# OS
+.DS_Store
+Thumbs.db
